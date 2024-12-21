@@ -1,0 +1,20 @@
+all:
+  hosts:
+    loadbalancer:
+      ansible_host: 3.90.55.191  # Ganti dengan IP publik Load Balancer
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: /mnt/c/Users/mihan/Downloads/project/TA/ccs.pem
+      ansible_python_interpreter: /usr/bin/python3
+  children:
+    web_servers:
+      hosts:
+        ccs-web1:
+          ansible_host: 54.234.242.25  # Ganti dengan IP publik Web Server 1
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: /mnt/c/Users/mihan/Downloads/project/TA/ccs.pem
+          ansible_python_interpreter: /usr/bin/python3
+        ccs-web2:
+          ansible_host: 54.196.89.75  # Ganti dengan IP publik Web Server 2
+          ansible_user: ubuntu
+          ansible_ssh_private_key_file: /mnt/c/Users/mihan/Downloads/project/TA/ccs.pem
+          ansible_python_interpreter: /usr/bin/python3

@@ -1,0 +1,129 @@
+---
+- name: Configure Load Balancer (HAProxy)
+  hosts: loadbalancer
+  become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    - name: Install HAProxy
+      apt:
+        name: haproxy
+        state: present
+
+    - name: Configure HAProxy for Round Robin Load Balancing
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+              log /dev/log   local0
+              log /dev/log   local1 notice
+              maxconn 200
+
+          defaults
+              log     global
+              option  httplog
+              timeout connect 5000ms
+              timeout client  50000ms
+              timeout server  50000ms
+
+          frontend http_front
+              bind *:80
+              default_backend http_back
+
+          backend http_back
+              balance roundrobin
+              server web1 {{ hostvars['ccs-web1']['ansible_host'] }}:80 check
+              server web2 {{ hostvars['ccs-web2']['ansible_host'] }}:80 check
+
+    - name: Restart HAProxy service
+      service:
+        name: haproxy
+        state: restarted
+
+    - name: Start HAProxy service
+      service:
+        name: haproxy
+        state: started
+        enabled: true
+
+  handlers:
+    - name: restart haproxy
+      service:
+        name: haproxy
+        state: restarted
+
+
+- name: Configure Web Servers
+  hosts: web_servers  # Menentukan bahwa playbook ini berjalan di grup 'web_servers'
+  become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+  tasks:
+    - name: Update all packages
+      apt:
+        update_cache: yes
+
+    - name: Install Apache2
+      apt:
+        name: apache2
+        state: present
+
+    - name: Start Apache2 service
+      service:
+        name: apache2
+        state: started
+
+    - name: Remove default index.html
+      file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Download website content for Server 1
+      get_url:
+        url: "https://drive.usercontent.google.com/u/0/uc?id=1b52m7HCqURF57dsNtLRDxVzS7sg0FqsA&export=download"
+        dest: /var/www/html/downloaded_server1.zip
+      when: inventory_hostname == "ccs-web1"  # Hanya untuk server 1
+
+    - name: Download website content for Server 2
+      get_url:
+        url: "https://drive.usercontent.google.com/u/0/uc?id=1NV42OiTYTsGLSs02WqSfGng0qTue-_rw&export=download"
+        dest: /var/www/html/downloaded_server2.zip
+      when: inventory_hostname == "ccs-web2"  # Hanya untuk server 2
+
+    - name: Install unzip package
+      apt:
+        name: unzip
+        state: present
+
+    - name: Unzip website content for Server 1
+      unarchive:
+        src: /var/www/html/downloaded_server1.zip
+        dest: /var/www/html/
+        remote_src: yes
+      when: inventory_hostname == "ccs-web1"  # Hanya untuk server 1
+
+    - name: Unzip website content for Server 2
+      unarchive:
+        src: /var/www/html/downloaded_server2.zip
+        dest: /var/www/html/
+        remote_src: yes
+      when: inventory_hostname == "ccs-web2"  # Hanya untuk server 2
+
+    - name: Remove the downloaded zip file for Server 1
+      file:
+        path: /var/www/html/downloaded_server1.zip
+        state: absent
+      when: inventory_hostname == "ccs-web1"  # Hanya untuk server 1
+
+    - name: Remove the downloaded zip file for Server 2
+      file:
+        path: /var/www/html/downloaded_server2.zip
+        state: absent
+      when: inventory_hostname == "ccs-web2"  # Hanya untuk server 2
+
+    - name: Restart Apache2 service
+      service:
+        name: apache2
+        state: restarted
